@@ -3,32 +3,43 @@
   "version": "1.0.0",
   "private": true,
   "description": "BASIS: Cross-chain, non-collateralized DeFi credit protocol powered by Attestcoin and Creditcoin",
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "scripts": {
-    "dev": "npm run dev:backend",
-    "dev:all": "npx concurrently -n backend,frontend -c blue,green \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
-    "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build",
-    "build:backend": "npm --prefix backend run build",
-    "build:frontend": "npm --prefix frontend run build",
-    "test": "npm --prefix backend run test",
-    "test:backend": "npm --prefix backend run test",
-    "seed": "npm --prefix backend run seed",
-    "calibrate": "npm --prefix backend run calibrate"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/evidence-engine.test.ts",
+    "seed": "tsx scripts/seed.ts",
+    "calibrate": "tsx scripts/calibrate.ts"
   },
-  "keywords": [
-    "defi",
-    "credit",
-    "attestcoin",
-    "creditcoin",
-    "undercollateralized",
-    "zero-knowledge",
-    "reputation"
-  ],
-  "author": "BASIS Protocol",
-  "license": "MIT"
+  "dependencies": {
+    "@gluwa/usc-sdk": "^0.18.0",
+    "clsx": "^2.1.1",
+    "dotenv": "17.3.1",
+    "drizzle-orm": "0.45.2",
+    "ethers": "^6.15.0",
+    "lucide-react": "^1.45.0",
+    "next": "16.2.6",
+    "pg": "8.20.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "tailwind-merge": "^3.4.0",
+    "tsx": "^4.23.13",
+    "viem": "^2.56.5",
+    "zod": "^4.6.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.17",
+    "@types/node": "22.19.15",
+    "@types/pg": "8.18.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "postcss": "8.5.8",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3"
+  }
 }

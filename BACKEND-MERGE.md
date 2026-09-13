@@ -11,10 +11,10 @@ The parent project folder originally contained three decoupled codebases:
 3. **`implement-basis-backend-architecture` (Backend B)**: A modular Next.js architecture featuring a rigorous quantitative economic evidence engine, clean provider abstractions (Attestcoin BlockProver, Creditcoin CC3, EVM chains), comprehensive test coverage (51 unit tests), and Drizzle ORM PostgreSQL persistence.
 
 ### Consolidated Target State
-- **`frontend/`**: The sacred UI from `design-basis-credit-dashboard`, enriched with a typed API service layer, live state synchronization (`BasisContext`), live EIP-1193 wallet connector, Attestcoin Merkle proof inspection drawer, real-time 9-stage credit building modal, and dedicated network / Sybil verification views strictly adhering to the design system.
-- **`backend/`**: Canonical Next.js 16 modular backend derived from Backend B, enhanced with protocol registry mappings, client connector endpoints, dual demo/live mode capabilities, and full API endpoint compatibility.
-- **`docs/`**: Comprehensive technical documentation suite covering API specifications, architecture, Attestcoin proofs, Creditcoin settlement, economic scoring, and external integrations.
-- **Root Orchestration**: Unified `package.json` with npm workspaces and concurrent dev/build/test scripts.
+- **Single Unified Next.js 16 App**: The frontend dashboard (`basis-fintech-frontend-reconstruction`) and all 30 REST backend endpoints (`/api/*`) are unified under `src/app/` in a single full-stack application.
+- **Single Port & Deployment**: Runs on `http://localhost:3000` with `npm run dev` and deploys to Vercel in 1 click without separate services or CORS configurations.
+- **Supabase & Postgres Ready**: Drizzle ORM schema connects directly to Supabase with connection string in `.env`.
+- **Docs Suite**: Complete documentation suite under `docs/` and root.
 
 ---
 

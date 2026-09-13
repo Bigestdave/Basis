@@ -14,37 +14,23 @@ Traditional DeFi relies on over-collateralization (e.g. 150% deposit for a 100% 
 
 ```
 Basis/
-├── frontend/                     # Sacred UI Source of Truth (Vite + React 19 + Tailwind CSS)
-│   ├── src/
-│   │   ├── components/           # Sacred UI components, modals, and drawers
-│   │   ├── context/              # Central state management (BasisContext)
-│   │   ├── services/             # Typed API & EIP-1193 wallet connector layer
-│   │   └── views/                # Views: Overview, Credit, Evidence, Activity, Wallets, Networks, FarmTest
-│   └── package.json
+├── src/
+│   ├── app/                  # Next.js App Router (Dashboard Page + 30 /api/* REST endpoints)
+│   ├── components/           # UI components, layout (AppShell), and icon library
+│   ├── features/             # Home, Credit, Borrow/Repay, Activity, Evidence, Wallets, Networks, Settings, FarmTest
+│   ├── store/                # Centralized state management (StoreProvider)
+│   ├── services/             # Client API service layer & backend application services
+│   ├── db/                   # Drizzle ORM schema and PostgreSQL client (Supabase compatible)
+│   ├── domain/               # Domain models, protocols, evidence math, credit engine
+│   ├── providers/            # ChainProvider, AttestcoinProvider, CreditcoinProvider
+│   └── lib/                  # Runtime config, HTTP utilities, rate limiters
 │
-├── backend/                      # Production Next.js 16 API Backend
-│   ├── src/
-│   │   ├── app/api/              # 30 RESTful API endpoints
-│   │   ├── db/                   # Drizzle ORM schema and PostgreSQL client
-│   │   ├── domain/               # Domain models, protocols, evidence math, credit engine
-│   │   ├── lib/                  # Runtime config, HTTP utilities, rate limiters
-│   │   ├── providers/            # ChainProvider, AttestcoinProvider, CreditcoinProvider
-│   │   └── services/             # Pipeline job runner, credit service, wallet service
-│   ├── tests/                    # 51 comprehensive unit and invariant tests
-│   └── package.json
-│
-├── docs/                         # Technical specifications and guides
-│   ├── API.md                    # Complete REST API reference
-│   ├── ARCHITECTURE.md           # Deep architectural analysis and invariants
-│   ├── ATTESTCOIN.md             # USC BlockProver & Merkle Patricia Trie proofs
-│   ├── CREDITCOIN.md             # CC3 decentralized credit settlement & ledger
-│   ├── DEMO.md                   # Deterministic demo guide & test scenarios
-│   ├── ECONOMIC-EVIDENCE.md      # Quantitative proof of the S-curve scoring engine
-│   └── INTEGRATIONS.md           # External network and provider setup
-│
-├── BACKEND-MERGE.md              # Harmonization & backend merge report
-├── .env.example                  # Environment configuration template
-└── package.json                  # Root monorepo orchestration
+├── public/                   # Official logo, banner, and favicon branding assets
+├── tests/                    # 51 comprehensive unit and invariant tests
+├── scripts/                  # seed.ts, calibrate.ts
+├── docs/                     # Technical specifications and guides
+├── .env.example              # Environment configuration template
+└── package.json              # Unified full-stack scripts (Next.js 16)
 ```
 
 ---
@@ -56,24 +42,17 @@ Basis/
 - **npm**: v9.0.0 or higher
 
 ### 1. Install Dependencies
-Install dependencies across both `backend` and `frontend`:
 ```bash
-# In the root Basis directory:
-npm --prefix backend install
-npm --prefix frontend install
+npm install
 ```
 
 ### 2. Run the Application
 BASIS runs completely out of the box in **Demo Mode** without needing external RPC keys or a live database:
 
 ```bash
-# Terminal 1: Start the Backend API (runs on http://localhost:3000)
-npm run dev:backend
-
-# Terminal 2: Start the Frontend App (runs on http://localhost:5173)
-npm run dev:frontend
+npm run dev
 ```
-Open **`http://localhost:5173`** in your browser to explore the dashboard.
+Open **`http://localhost:3000`** in your browser. The frontend dashboard and the complete backend API run together on this single port.
 
 ---
 

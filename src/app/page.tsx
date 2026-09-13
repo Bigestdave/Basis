@@ -1,18 +1,20 @@
-import { AppShell } from "./components/layout/AppShell";
-import { StoreProvider, useStore } from "./store/store";
-import { HomePage } from "./features/home/HomePage";
-import { CreditPage } from "./features/credit/CreditPage";
-import { BorrowRepayPage } from "./features/credit/BorrowRepayPage";
-import { ActivityPage } from "./features/activity/ActivityPage";
-import { EvidencePage } from "./features/evidence/EvidencePage";
-import { WalletsPage, ConnectWalletView } from "./features/wallets/WalletsPage";
-import { NetworksPage } from "./features/networks/NetworksPage";
-import { SettingsPage } from "./features/settings/SettingsPage";
-import { BuildCreditPage } from "./features/build-credit/BuildCreditPage";
-import { CreditResultPage } from "./features/build-credit/CreditResultPage";
-import { FarmTestPage } from "./features/farm-test/FarmTestPage";
-import { EventDrawer } from "./features/activity/EventDrawer";
-import { Card, ErrorState } from "./components/ui";
+"use client";
+
+import { AppShell } from "@/components/layout/AppShell";
+import { StoreProvider, useStore } from "@/store/store";
+import { HomePage } from "@/features/home/HomePage";
+import { CreditPage } from "@/features/credit/CreditPage";
+import { BorrowRepayPage } from "@/features/credit/BorrowRepayPage";
+import { ActivityPage } from "@/features/activity/ActivityPage";
+import { EvidencePage } from "@/features/evidence/EvidencePage";
+import { WalletsPage, ConnectWalletView } from "@/features/wallets/WalletsPage";
+import { NetworksPage } from "@/features/networks/NetworksPage";
+import { SettingsPage } from "@/features/settings/SettingsPage";
+import { BuildCreditPage } from "@/features/build-credit/BuildCreditPage";
+import { CreditResultPage } from "@/features/build-credit/CreditResultPage";
+import { FarmTestPage } from "@/features/farm-test/FarmTestPage";
+import { EventDrawer } from "@/features/activity/EventDrawer";
+import { Card, ErrorState } from "@/components/ui";
 
 function Routes() {
   const { route, status, reload } = useStore();
@@ -73,7 +75,7 @@ function Shell() {
   );
 }
 
-export default function App() {
+export default function Page() {
   return (
     <StoreProvider>
       <Shell />

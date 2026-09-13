@@ -36,7 +36,10 @@ export const DEMO_MODE = true;
 const delay = <T,>(value: T, ms = 420): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+const API_BASE_URL =
+  typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")
+    : "";
 
 let storedToken: string | null =
   typeof window !== "undefined" ? localStorage.getItem("basis_session_token") : null;
