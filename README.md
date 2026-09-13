@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="BASIS Credit Infrastructure" width="100%" />
+</p>
+
 # BASIS: Non-Collateralized DeFi Credit Protocol
 
 **BASIS** is a decentralized, non-collateralized credit protocol that converts multi-chain economic track records into cryptographic credit lines using **Attestcoin (USC)** cross-chain state verification and **Creditcoin (CC3)** settlement.

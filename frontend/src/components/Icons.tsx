@@ -192,11 +192,13 @@ export const FlaskIcon = (p: P) => (
 
 export function BasisMark({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-label="BASIS">
-      <rect width="28" height="28" rx="8" fill="#0052FF" />
-      <rect x="7" y="18.2" width="14" height="3" rx="1.5" fill="#fff" />
-      <rect x="7" y="12.4" width="9.6" height="3" rx="1.5" fill="#fff" fillOpacity="0.82" />
-      <rect x="7" y="6.6" width="5.2" height="3" rx="1.5" fill="#fff" fillOpacity="0.55" />
-    </svg>
+    <img
+      src="/logo.png"
+      width={size}
+      height={size}
+      alt="BASIS Logo"
+      className="shrink-0 object-contain rounded-md"
+      style={{ width: size, height: size }}
+    />
   );
 }
