@@ -37,3 +37,9 @@ Thumbs.db
 
 # Turbopack & Next.js cache
 .turbo
+
+# Embedded Postgres data directory
+.pglite/
+.pglite_data/
+tsconfig.tsbuildinfo
+

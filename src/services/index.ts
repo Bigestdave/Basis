@@ -1,7 +1,7 @@
 /**
  * Service layer. Every screen consumes data through these functions.
- * In demo mode they connect to the local Next.js backend when reachable,
- * with seamless fallback to deterministic seed data.
+ * Connects directly to the unified Next.js API routes with live state,
+ * with deterministic fallback data if the backend is unreachable.
  */
 import {
   assets,
@@ -33,7 +33,7 @@ import type {
 
 export const DEMO_MODE = true;
 
-const delay = <T,>(value: T, ms = 420): Promise<T> =>
+const delay = <T,>(value: T, ms = 300): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
 const API_BASE_URL =
@@ -44,8 +44,53 @@ const API_BASE_URL =
 let storedToken: string | null =
   typeof window !== "undefined" ? localStorage.getItem("basis_session_token") : null;
 
+let sessionPromise: Promise<string | null> | null = null;
+
+export async function ensureSession(): Promise<string | null> {
+  if (storedToken) return storedToken;
+  if (sessionPromise) return sessionPromise;
+
+  sessionPromise = (async () => {
+    try {
+      const url = `${API_BASE_URL}/api/auth/demo`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenarioKey: "strong-history" }),
+        credentials: "include",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const payload = json && typeof json === "object" && "data" in json ? json.data : json;
+        const token = payload?.session?.token;
+        if (token) {
+          storedToken = token;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("basis_session_token", token);
+          }
+          return token;
+        }
+      }
+    } catch (err) {
+      console.warn("[Basis Client] Auth handshake error:", err);
+    } finally {
+      sessionPromise = null;
+    }
+    return null;
+  })();
+
+  return sessionPromise;
+}
+
+if (typeof window !== "undefined") {
+  void ensureSession();
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
   try {
+    if (endpoint !== "/api/auth/demo" && !storedToken) {
+      await ensureSession();
+    }
     const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -67,36 +112,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 }
 
-async function ensureSession(): Promise<void> {
-  if (storedToken) return;
-  try {
-    const data = await request<{ session: { token: string } }>("/api/auth/demo", {
-      method: "POST",
-      body: JSON.stringify({ scenarioKey: "strong-history" }),
-    });
-    if (data?.session?.token) {
-      storedToken = data.session.token;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("basis_session_token", storedToken);
-      }
-    }
-  } catch {
-    // Fallback gracefully without server
-  }
-}
-
-if (typeof window !== "undefined") {
-  ensureSession();
-}
-
 export const authService = {
   getUser: async (): Promise<User> => {
     await ensureSession();
-    const data = await request<{ user: { id: string } }>("/api/me");
+    const data = await request<{ user: { id: string; label?: string } }>("/api/me");
     if (data?.user) {
       return {
         ...demoUser,
         id: data.user.id,
+        name: data.user.label || demoUser.name,
       };
     }
     return delay(demoUser, 200);
@@ -144,53 +168,44 @@ export const networksService = {
 export const activityService = {
   list: async (): Promise<EconomicEvent[]> => {
     await ensureSession();
-    const data = await request<
-      Array<{
-        id: string;
-        title: string;
-        kind: string;
-        amountUsd: number;
-        chainKey: string;
-        timestamp: number;
-        counterparty: string;
-        protocol?: string;
-        evidenceStatus: string;
-      }>
-    >("/api/activity");
+    const res = await request<{ items?: any[] } | any[]>("/api/activity");
+    const rawItems: any[] = Array.isArray(res) ? res : res?.items ?? [];
 
-    if (data && data.length > 0) {
-      return data.map((item, idx) => {
+    if (rawItems && rawItems.length > 0) {
+      return rawItems.map((item, idx) => {
         const seedItem = economicEvents[idx % economicEvents.length];
-        const isBorrowRepay = item.kind === "borrow" || item.kind === "repay";
-        const isDeposit = item.kind === "deposit" || item.kind === "settlement";
+        const kind = (item.type || item.kind || "").toUpperCase();
+        const isBorrow = kind === "BORROW" || kind === "borrow";
+        const isRepay = kind === "REPAY" || kind === "repay";
+        const isDeposit = kind === "DEPOSIT" || kind === "FUNDING" || kind === "deposit" || kind === "settlement";
+        const isSwap = kind === "SWAP" || kind === "swapped";
+
+        const amountUsd = item.amount?.usd ?? item.amountUsd ?? 0;
+        const timestamp = item.timestamp ?? item.timestampMs ?? Date.now();
+        const chainKey = item.chainKey ?? "ethereum-sepolia";
+
         return {
-          id: item.id,
-          type: (item.kind === "borrow"
-            ? "borrow"
-            : item.kind === "repay"
-              ? "repay"
-              : isDeposit
-                ? "deposit"
-                : "swapped") as any,
-          category: (isBorrowRepay ? "borrow-repay" : isDeposit ? "deposits" : "swaps") as any,
-          title: item.title || seedItem.title,
-          subtitle: `${item.counterparty || "Counterparty"} · ${item.chainKey}`,
+          id: item.id || seedItem.id,
+          type: (isBorrow ? "borrow" : isRepay ? "repay" : isDeposit ? "deposit" : isSwap ? "swapped" : "received") as any,
+          category: (isBorrow || isRepay ? "borrow-repay" : isDeposit ? "deposits" : isSwap ? "swaps" : "other") as any,
+          title: item.description || item.title || seedItem.title,
+          subtitle: `${item.counterparty || "Counterparty"} · ${chainKey}`,
           assetId: "usdc",
-          assetSymbol: "USDC",
-          amount: Math.round(item.amountUsd),
-          amountUsd: item.amountUsd,
-          network: (item.chainKey.includes("base")
+          assetSymbol: item.asset || "USDC",
+          amount: Math.round(amountUsd),
+          amountUsd,
+          network: (chainKey.includes("base")
             ? "base"
-            : item.chainKey.includes("creditcoin")
+            : chainKey.includes("creditcoin")
               ? "creditcoin"
               : "ethereum") as any,
-          date: new Date(item.timestamp).toLocaleDateString("en-US", {
+          date: new Date(timestamp).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric",
           }),
-          time: new Date(item.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-          verified: item.evidenceStatus === "verified",
+          time: new Date(timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+          verified: Boolean(item.verified),
           counterparty: item.counterparty,
           protocol: item.protocol,
           proof: seedItem.proof,
@@ -209,6 +224,18 @@ export const evidenceService = {
   summary: async (): Promise<EvidenceSummary> => {
     await ensureSession();
     const data = await request<{
+      summary?: {
+        eventCount: number;
+        verifiedCount: number;
+      };
+      latest?: {
+        strength: string;
+        capitalIndependence: number;
+        economicDiversity: number;
+        behavioralCoherence: number;
+        eventCount: number;
+        verifiedEventCount: number;
+      };
       evaluation?: {
         strength: string;
         capitalIndependence: number;
@@ -219,15 +246,15 @@ export const evidenceService = {
       };
     }>("/api/evidence");
 
-    if (data?.evaluation) {
-      const ev = data.evaluation;
+    const ev = data?.latest || data?.evaluation;
+    if (ev) {
       return {
         ...evidenceSummary,
         strength: ev.strength === "strong" ? "Strong" : ev.strength === "moderate" ? "Moderate" : "Weak",
-        verifiedEvents: ev.verifiedEventCount || evidenceSummary.verifiedEvents,
-        fundingSources: Math.max(1, Math.round(ev.capitalIndependence * 4)),
-        counterparties: Math.max(2, Math.round(ev.economicDiversity * 8)),
-        protocols: Math.max(1, Math.round(ev.economicDiversity * 4)),
+        verifiedEvents: ev.verifiedEventCount ?? data?.summary?.verifiedCount ?? evidenceSummary.verifiedEvents,
+        fundingSources: Math.max(1, Math.round((ev.capitalIndependence ?? 0.75) * 4)),
+        counterparties: Math.max(2, Math.round((ev.economicDiversity ?? 0.65) * 8)),
+        protocols: Math.max(1, Math.round((ev.economicDiversity ?? 0.65) * 4)),
       };
     }
     return delay(evidenceSummary, 460);
@@ -239,25 +266,35 @@ export const creditService = {
   account: async (): Promise<CreditAccount> => {
     await ensureSession();
     const data = await request<{
-      creditLimit: { usd: number };
-      borrowed: { usd: number };
-      available: { usd: number };
-      utilization: number;
+      account?: {
+        creditLimit: { usd: number };
+        borrowed: { usd: number };
+        available: { usd: number };
+        utilizationPercent?: number;
+        tier?: string;
+      };
+      creditLimit?: { usd: number };
+      borrowed?: { usd: number };
+      available?: { usd: number };
+      utilizationPercent?: number;
       tier?: string;
     }>("/api/credit");
 
-    if (data?.creditLimit) {
-      const limit = data.creditLimit.usd;
-      const borrowed = data.borrowed.usd;
-      const available = data.available.usd;
-      const utilization = Math.round((borrowed / (limit || 1)) * 100);
+    const raw = data?.account || data;
+    if (raw?.creditLimit) {
+      const limit = raw.creditLimit.usd;
+      const borrowed = raw.borrowed?.usd ?? 0;
+      const available = raw.available?.usd ?? (limit - borrowed);
+      const rawUtilization = "utilizationPercent" in raw ? raw.utilizationPercent : undefined;
+      const rawTier = "tier" in raw ? raw.tier : undefined;
+      const utilization = rawUtilization ?? Math.round((borrowed / (limit || 1)) * 100);
       return {
         ...creditAccount,
         limit,
         borrowed,
         available,
         utilization,
-        tier: (data.tier as any) || (limit >= 10000 ? "Prime" : limit >= 5000 ? "Standard" : "Starter"),
+        tier: (rawTier as any) || (limit >= 10000 ? "Prime" : limit >= 5000 ? "Standard" : "Starter"),
       };
     }
     return delay(creditAccount, 420);
@@ -265,21 +302,31 @@ export const creditService = {
   transactions: (): Promise<CreditTransaction[]> => delay(creditTransactions, 420),
   borrow: async (amount: number, account: CreditAccount): Promise<CreditAccount> => {
     const res = await request<{
-      account: {
+      credit?: {
+        account?: {
+          creditLimit: { usd: number };
+          borrowed: { usd: number };
+          available: { usd: number };
+          utilizationPercent?: number;
+        };
+      };
+      account?: {
         creditLimit: { usd: number };
         borrowed: { usd: number };
         available: { usd: number };
+        utilizationPercent?: number;
       };
     }>("/api/credit/borrow", {
       method: "POST",
       body: JSON.stringify({ amountUsd: amount }),
     });
 
-    if (res?.account) {
-      const limit = res.account.creditLimit.usd;
-      const borrowed = res.account.borrowed.usd;
-      const available = res.account.available.usd;
-      const utilization = Math.round((borrowed / (limit || 1)) * 100);
+    const acc = res?.credit?.account || res?.account;
+    if (acc?.creditLimit) {
+      const limit = acc.creditLimit.usd;
+      const borrowed = acc.borrowed.usd;
+      const available = acc.available.usd;
+      const utilization = acc.utilizationPercent ?? Math.round((borrowed / (limit || 1)) * 100);
       return {
         ...account,
         limit,
@@ -302,21 +349,31 @@ export const creditService = {
   },
   repay: async (amount: number, account: CreditAccount): Promise<CreditAccount> => {
     const res = await request<{
-      account: {
+      credit?: {
+        account?: {
+          creditLimit: { usd: number };
+          borrowed: { usd: number };
+          available: { usd: number };
+          utilizationPercent?: number;
+        };
+      };
+      account?: {
         creditLimit: { usd: number };
         borrowed: { usd: number };
         available: { usd: number };
+        utilizationPercent?: number;
       };
     }>("/api/credit/repay", {
       method: "POST",
       body: JSON.stringify({ amountUsd: amount }),
     });
 
-    if (res?.account) {
-      const limit = res.account.creditLimit.usd;
-      const borrowed = res.account.borrowed.usd;
-      const available = res.account.available.usd;
-      const utilization = Math.round((borrowed / (limit || 1)) * 100);
+    const acc = res?.credit?.account || res?.account;
+    if (acc?.creditLimit) {
+      const limit = acc.creditLimit.usd;
+      const borrowed = acc.borrowed.usd;
+      const available = acc.available.usd;
+      const utilization = acc.utilizationPercent ?? Math.round((borrowed / (limit || 1)) * 100);
       return {
         ...account,
         limit,
@@ -352,31 +409,48 @@ export const buildCreditService = {
   steps: () => verificationSteps.map((s) => ({ ...s })),
   decide: async (previousLimit: number): Promise<CreditDecision> => {
     try {
-      await request("/api/evidence/build", { method: "POST", body: JSON.stringify({}) });
-      const evData = await request<{
-        decision?: {
-          decisionAmountUsd: number;
-        };
-      }>("/api/evidence/evaluate", { method: "POST", body: JSON.stringify({}) });
+      await ensureSession();
+      const res = await request<{ job?: { id: string }; pollUrl?: string }>("/api/evidence/evaluate", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
 
-      if (evData?.decision) {
-        const delta = evData.decision.decisionAmountUsd || 4200;
-        return {
-          previousLimit,
-          newLimit: previousLimit + delta,
-          delta,
-          verifiedEvents: 11,
-          fundingSources: 3,
-          counterparties: 8,
-          protocols: 3,
-          checks: [
-            { label: "Funding sources identified", count: 3 },
-            { label: "Transactions verified", count: 11 },
-            { label: "Counterparties mapped", count: 8 },
-            { label: "Economic relationships analyzed", count: 6 },
-            { label: "Evidence calculation complete", count: 1 },
-          ],
-        };
+      const jobId = res?.job?.id;
+      if (jobId) {
+        for (let i = 0; i < 12; i++) {
+          await new Promise((r) => setTimeout(r, 450));
+          const jobData = await request<{
+            status: string;
+            resultReference?: {
+              creditIncreaseUsdCents?: number;
+              newLimitUsdCents?: number;
+              evidenceScore?: number;
+              eventCount?: number;
+            };
+          }>(`/api/jobs/${jobId}`);
+
+          if (jobData?.status === "COMPLETED" && jobData.resultReference) {
+            const ref = jobData.resultReference;
+            const delta = (ref.creditIncreaseUsdCents || 420000) / 100;
+            const newLimit = (ref.newLimitUsdCents || ((previousLimit + delta) * 100)) / 100;
+            return {
+              previousLimit,
+              newLimit,
+              delta,
+              verifiedEvents: ref.eventCount || 11,
+              fundingSources: 3,
+              counterparties: 8,
+              protocols: 3,
+              checks: [
+                { label: "Funding sources identified", count: 3 },
+                { label: "Transactions verified", count: ref.eventCount || 11 },
+                { label: "Counterparties mapped", count: 8 },
+                { label: "Economic relationships analyzed", count: 6 },
+                { label: "Evidence calculation complete", count: 1 },
+              ],
+            };
+          }
+        }
       }
     } catch {
       // Fallback below

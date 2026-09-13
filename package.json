@@ -14,6 +14,7 @@
     "calibrate": "tsx scripts/calibrate.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@gluwa/usc-sdk": "^0.18.0",
     "clsx": "^2.1.1",
     "dotenv": "17.3.1",

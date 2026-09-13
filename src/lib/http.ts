@@ -8,7 +8,7 @@
  */
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { NextRequest } from "next/server";
-import { db } from "@/db";
+import { db, ensureDatabaseReady } from "@/db";
 import { sessions, users, wallets } from "@/db/schema";
 import { rateLimitConfig, SESSION_COOKIE_NAME } from "@/lib/config";
 import { AppError, badRequest, forbidden, isAppError, notFound, toAppError, unauthorized } from "@/lib/errors";
@@ -182,6 +182,8 @@ export function route(
           details: { retryAfterMs: limited.retryAfterMs },
         });
       }
+
+      await ensureDatabaseReady();
 
       const auth = await resolveAuth(request);
       if (options.auth === "required" && !auth) throw unauthorized();
